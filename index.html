@@ -30,6 +30,31 @@
             --calendar-text: #1f2937;
             --task-text: #1f2937;
             --important-text: #1f2937;
+            --daily-task-color: #10b981;
+        }
+
+        /* Dark Mode Variables */
+        body.dark-mode {
+            --primary-color: #6366f1;
+            --primary-light: #a5b4fc;
+            --primary-dark: #4338ca;
+            --secondary-color: #374151;
+            --text-primary: #f9fafb;
+            --text-secondary: #d1d5db;
+            --bg-primary: #1f2937;
+            --bg-secondary: #111827;
+            --border-color: #374151;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+            --calendar-bg: #1f2937;
+            --task-list-bg: #1f2937;
+            --important-bg: #1f2937;
+            --calendar-text: #f9fafb;
+            --task-text: #f9fafb;
+            --important-text: #f9fafb;
+            --daily-task-color: #34d399;
         }
 
         * {
@@ -599,6 +624,10 @@
             color: var(--text-secondary);
         }
 
+        .task-item.daily-task {
+            border-left: 3px solid var(--daily-task-color);
+        }
+
         .task-delete {
             background: none;
             border: none;
@@ -675,9 +704,17 @@
             border-color: var(--primary-color);
         }
 
+        .event-item.daily-event {
+            border-left-color: var(--daily-task-color);
+        }
+
         .event-item i {
             color: var(--primary-color);
             font-size: 14px;
+        }
+
+        .event-item.daily-event i {
+            color: var(--daily-task-color);
         }
 
         .event-checkbox {
@@ -818,6 +855,7 @@
             padding: 12px;
             background: var(--secondary-color);
             border-radius: var(--radius-sm);
+            margin-bottom: 10px;
         }
 
         .checkbox-group input[type="checkbox"] {
@@ -891,6 +929,29 @@
             font-size: 18px;
             color: var(--text-primary);
             cursor: pointer;
+        }
+
+        /* Dark Mode Toggle */
+        .dark-mode-toggle {
+            background: var(--secondary-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 6px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .dark-mode-toggle:hover {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .dark-mode-toggle i {
+            font-size: 16px;
         }
 
         @media (max-width: 1024px) {
@@ -986,6 +1047,10 @@
                 </button>
                 <h1>Task Calendar Manager</h1>
                 <div class="customization-container">
+                    <div class="dark-mode-toggle" id="dark-mode-toggle">
+                        <i class="fas fa-moon" id="dark-mode-icon"></i>
+                        <span id="dark-mode-text">Dark Mode</span>
+                    </div>
                     <div class="color-picker-group">
                         <label for="theme-color">Theme:</label>
                         <input type="color" id="theme-color" class="color-picker" value="#4f46e5">
@@ -1108,6 +1173,12 @@
                         <label for="task-important">Mark as Important</label>
                     </div>
                 </div>
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="task-daily">
+                        <label for="task-daily">Mark as Daily Task</label>
+                    </div>
+                </div>
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" id="cancel-task">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Task</button>
@@ -1137,6 +1208,7 @@
             const taskForm = document.getElementById('task-form');
             const taskTextInput = document.getElementById('task-text');
             const taskImportantCheckbox = document.getElementById('task-important');
+            const taskDailyCheckbox = document.getElementById('task-daily');
             const themeColorPicker = document.getElementById('theme-color');
             const calendarBgColorPicker = document.getElementById('calendar-bg-color');
             const taskListBgColorPicker = document.getElementById('task-list-bg-color');
@@ -1145,10 +1217,14 @@
             const bgOptions = document.querySelectorAll('.bg-option');
             const menuToggle = document.getElementById('menu-toggle');
             const sidebar = document.getElementById('sidebar');
+            const darkModeToggle = document.getElementById('dark-mode-toggle');
+            const darkModeIcon = document.getElementById('dark-mode-icon');
+            const darkModeText = document.getElementById('dark-mode-text');
 
             let currentDate = new Date();
             let selectedDate = null;
             let tasks = [];
+            let dailyTaskCompletions = {}; // Track daily task completions by date
 
             // Load tasks from localStorage
             function loadTasks() {
@@ -1156,11 +1232,18 @@
                 if (savedTasks) {
                     tasks = JSON.parse(savedTasks);
                 }
+                
+                // Load daily task completions
+                const savedCompletions = localStorage.getItem('dailyTaskCompletions');
+                if (savedCompletions) {
+                    dailyTaskCompletions = JSON.parse(savedCompletions);
+                }
             }
 
             // Save tasks to localStorage
             function saveTasks() {
                 localStorage.setItem('calendarTasks', JSON.stringify(tasks));
+                localStorage.setItem('dailyTaskCompletions', JSON.stringify(dailyTaskCompletions));
             }
 
             // Load theme color from localStorage
@@ -1223,6 +1306,19 @@
             // Save background to localStorage
             function saveBackground(bgClass) {
                 localStorage.setItem('backgroundTheme', bgClass);
+            }
+
+            // Load dark mode preference from localStorage
+            function loadDarkMode() {
+                const isDarkMode = localStorage.getItem('darkMode') === 'true';
+                if (isDarkMode) {
+                    enableDarkMode();
+                }
+            }
+
+            // Save dark mode preference to localStorage
+            function saveDarkMode(isDarkMode) {
+                localStorage.setItem('darkMode', isDarkMode);
             }
 
             // Apply theme color
@@ -1292,6 +1388,34 @@
                 });
             }
 
+            // Enable dark mode
+            function enableDarkMode() {
+                document.body.classList.add('dark-mode');
+                darkModeIcon.classList.remove('fa-moon');
+                darkModeIcon.classList.add('fa-sun');
+                darkModeText.textContent = 'Light Mode';
+            }
+
+            // Disable dark mode
+            function disableDarkMode() {
+                document.body.classList.remove('dark-mode');
+                darkModeIcon.classList.remove('fa-sun');
+                darkModeIcon.classList.add('fa-moon');
+                darkModeText.textContent = 'Dark Mode';
+            }
+
+            // Toggle dark mode
+            function toggleDarkMode() {
+                const isDarkMode = document.body.classList.contains('dark-mode');
+                if (isDarkMode) {
+                    disableDarkMode();
+                    saveDarkMode(false);
+                } else {
+                    enableDarkMode();
+                    saveDarkMode(true);
+                }
+            }
+
             // Format date as YYYY-MM-DD
             function formatDate(date) {
                 const year = date.getFullYear();
@@ -1310,6 +1434,32 @@
             function formatDateFull(date) {
                 const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
                 return date.toLocaleDateString(undefined, options);
+            }
+
+            // Check if a daily task is completed on a specific date
+            function isDailyTaskCompleted(taskId, date) {
+                const dateString = formatDate(date);
+                if (!dailyTaskCompletions[taskId]) {
+                    return false;
+                }
+                return dailyTaskCompletions[taskId].includes(dateString);
+            }
+
+            // Mark a daily task as completed on a specific date
+            function markDailyTaskCompleted(taskId, date, completed) {
+                const dateString = formatDate(date);
+                if (!dailyTaskCompletions[taskId]) {
+                    dailyTaskCompletions[taskId] = [];
+                }
+                
+                if (completed && !dailyTaskCompletions[taskId].includes(dateString)) {
+                    dailyTaskCompletions[taskId].push(dateString);
+                } else if (!completed && dailyTaskCompletions[taskId].includes(dateString)) {
+                    const index = dailyTaskCompletions[taskId].indexOf(dateString);
+                    dailyTaskCompletions[taskId].splice(index, 1);
+                }
+                
+                saveTasks();
             }
 
             // Render calendar
@@ -1358,9 +1508,9 @@
                     const date = new Date(year, month, i);
                     const dateString = formatDate(date);
                     
-                    // Check if this day has tasks
-                    const hasTasks = tasks.some(task => task.date === dateString);
-                    if (hasTasks) {
+                    // Check if this day has regular tasks (not daily)
+                    const hasRegularTasks = tasks.some(task => task.date === dateString && !task.daily);
+                    if (hasRegularTasks) {
                         dayElement.classList.add('has-tasks');
                     }
                     
@@ -1414,9 +1564,17 @@
                 }
                 
                 const dateString = formatDate(selectedDate);
-                const dateTasks = tasks.filter(task => task.date === dateString && !task.important);
                 
-                if (dateTasks.length === 0) {
+                // Get regular tasks for this date
+                const regularTasks = tasks.filter(task => task.date === dateString && !task.daily && !task.important);
+                
+                // Get daily tasks
+                const dailyTasks = tasks.filter(task => task.daily && !task.important);
+                
+                // Combine tasks, with daily tasks first
+                const allTasks = [...dailyTasks, ...regularTasks];
+                
+                if (allTasks.length === 0) {
                     taskList.innerHTML = `
                         <div class="empty-state">
                             <i class="fas fa-calendar-check"></i>
@@ -1427,24 +1585,43 @@
                 }
                 
                 taskList.innerHTML = '';
-                dateTasks.forEach(task => {
+                allTasks.forEach(task => {
                     const taskItem = document.createElement('div');
-                    taskItem.className = `task-item ${task.completed ? 'completed' : ''}`;
+                    taskItem.className = `task-item ${task.daily ? 'daily-task' : ''}`;
+                    
+                    // Check if task is completed
+                    let isCompleted = task.completed;
+                    if (task.daily) {
+                        isCompleted = isDailyTaskCompleted(task.id, selectedDate);
+                    }
+                    
+                    if (isCompleted) {
+                        taskItem.classList.add('completed');
+                    }
                     
                     const checkbox = document.createElement('input');
                     checkbox.type = 'checkbox';
                     checkbox.className = 'task-checkbox';
-                    checkbox.checked = task.completed;
-                    checkbox.addEventListener('change', () => toggleTask(task.id));
+                    checkbox.checked = isCompleted;
+                    checkbox.addEventListener('change', () => toggleTask(task.id, task.daily));
                     
                     const taskText = document.createElement('div');
                     taskText.className = 'task-text';
                     taskText.textContent = task.text;
                     
+                    if (task.daily) {
+                        const dailyBadge = document.createElement('span');
+                        dailyBadge.style.fontSize = '10px';
+                        dailyBadge.style.color = 'var(--daily-task-color)';
+                        dailyBadge.style.marginLeft = '5px';
+                        dailyBadge.textContent = '(Daily)';
+                        taskText.appendChild(dailyBadge);
+                    }
+                    
                     const deleteBtn = document.createElement('button');
                     deleteBtn.className = 'task-delete';
                     deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-                    deleteBtn.addEventListener('click', () => deleteTask(task.id));
+                    deleteBtn.addEventListener('click', () => deleteTask(task.id, task.daily));
                     
                     taskItem.appendChild(checkbox);
                     taskItem.appendChild(taskText);
@@ -1465,9 +1642,17 @@
                 }
                 
                 const dateString = formatDate(selectedDate);
-                const importantTasks = tasks.filter(task => task.date === dateString && task.important);
                 
-                if (importantTasks.length === 0) {
+                // Get regular important tasks for this date
+                const regularImportantTasks = tasks.filter(task => task.date === dateString && task.important && !task.daily);
+                
+                // Get daily important tasks
+                const dailyImportantTasks = tasks.filter(task => task.daily && task.important);
+                
+                // Combine tasks, with daily tasks first
+                const allImportantTasks = [...dailyImportantTasks, ...regularImportantTasks];
+                
+                if (allImportantTasks.length === 0) {
                     importantEventsList.innerHTML = `
                         <div class="empty-state">
                             <p>No important events for the selected date</p>
@@ -1477,15 +1662,21 @@
                 }
                 
                 importantEventsList.innerHTML = '';
-                importantTasks.forEach(task => {
+                allImportantTasks.forEach(task => {
                     const eventItem = document.createElement('div');
-                    eventItem.className = 'event-item';
+                    eventItem.className = `event-item ${task.daily ? 'daily-event' : ''}`;
+                    
+                    // Check if task is completed
+                    let isCompleted = task.completed;
+                    if (task.daily) {
+                        isCompleted = isDailyTaskCompleted(task.id, selectedDate);
+                    }
                     
                     const checkbox = document.createElement('input');
                     checkbox.type = 'checkbox';
                     checkbox.className = 'event-checkbox';
-                    checkbox.checked = task.completed;
-                    checkbox.addEventListener('change', () => toggleTask(task.id));
+                    checkbox.checked = isCompleted;
+                    checkbox.addEventListener('change', () => toggleTask(task.id, task.daily));
                     
                     let icon = 'fa-calendar';
                     if (task.text.toLowerCase().includes('meeting')) {
@@ -1496,9 +1687,22 @@
                         icon = 'fa-calendar-alt';
                     }
                     
+                    if (task.daily) {
+                        icon = 'fa-sync-alt';
+                    }
+                    
                     const eventText = document.createElement('div');
                     eventText.className = 'event-text';
                     eventText.textContent = task.text;
+                    
+                    if (task.daily) {
+                        const dailyBadge = document.createElement('span');
+                        dailyBadge.style.fontSize = '10px';
+                        dailyBadge.style.color = 'var(--daily-task-color)';
+                        dailyBadge.style.marginLeft = '5px';
+                        dailyBadge.textContent = '(Daily)';
+                        eventText.appendChild(dailyBadge);
+                    }
                     
                     const iconElement = document.createElement('i');
                     iconElement.className = `fas ${icon}`;
@@ -1506,7 +1710,7 @@
                     const deleteBtn = document.createElement('button');
                     deleteBtn.className = 'event-delete';
                     deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
-                    deleteBtn.addEventListener('click', () => deleteTask(task.id));
+                    deleteBtn.addEventListener('click', () => deleteTask(task.id, task.daily));
                     
                     eventItem.appendChild(checkbox);
                     eventItem.appendChild(iconElement);
@@ -1521,13 +1725,31 @@
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 
-                // Get all future important events
+                // Get all future important events (both regular and daily)
                 const futureEvents = tasks
                     .filter(task => {
-                        const taskDate = new Date(task.date);
-                        return task.important && taskDate >= today && !task.completed;
+                        if (!task.important) return false;
+                        
+                        if (task.daily) {
+                            // Daily tasks are always "upcoming"
+                            return true;
+                        } else {
+                            // Regular tasks must be in the future
+                            const taskDate = new Date(task.date);
+                            return taskDate >= today;
+                        }
                     })
-                    .sort((a, b) => new Date(a.date) - new Date(b.date))
+                    .sort((a, b) => {
+                        // Sort daily tasks first, then by date
+                        if (a.daily && !b.daily) return -1;
+                        if (!a.daily && b.daily) return 1;
+                        
+                        if (!a.daily && !b.daily) {
+                            return new Date(a.date) - new Date(b.date);
+                        }
+                        
+                        return 0;
+                    })
                     .slice(0, 10); // Limit to 10 events
                 
                 if (futureEvents.length === 0) {
@@ -1545,10 +1767,17 @@
                     const eventBadge = document.createElement('div');
                     eventBadge.className = 'event-badge';
                     
-                    const taskDate = new Date(task.date);
+                    let eventDateText;
+                    if (task.daily) {
+                        eventDateText = 'Daily';
+                    } else {
+                        const taskDate = new Date(task.date);
+                        eventDateText = formatDateDisplay(taskDate);
+                    }
+                    
                     const eventDate = document.createElement('div');
                     eventDate.className = 'event-date';
-                    eventDate.textContent = formatDateDisplay(taskDate);
+                    eventDate.textContent = eventDateText;
                     
                     const eventTitle = document.createElement('div');
                     eventTitle.className = 'event-title';
@@ -1557,8 +1786,10 @@
                     const eventType = document.createElement('div');
                     eventType.className = 'event-type';
                     
-                    let icon = 'fa-calendar';
-                    if (task.text.toLowerCase().includes('meeting')) {
+                    if (task.daily) {
+                        eventType.textContent = 'Daily';
+                        eventType.style.backgroundColor = 'var(--daily-task-color)';
+                    } else if (task.text.toLowerCase().includes('meeting')) {
                         eventType.textContent = 'Meeting';
                     } else if (task.text.toLowerCase().includes('exam')) {
                         eventType.textContent = 'Exam';
@@ -1573,7 +1804,12 @@
                     eventBadge.appendChild(eventType);
                     
                     eventBadge.addEventListener('click', () => {
-                        selectDate(taskDate);
+                        if (!task.daily) {
+                            selectDate(new Date(task.date));
+                        } else {
+                            selectDate(new Date()); // Select today for daily tasks
+                        }
+                        
                         // Close sidebar on mobile after selection
                         if (window.innerWidth <= 768) {
                             sidebar.classList.remove('active');
@@ -1585,19 +1821,36 @@
             }
 
             // Toggle task completion
-            function toggleTask(taskId) {
-                const task = tasks.find(t => t.id === taskId);
-                if (task) {
-                    task.completed = !task.completed;
-                    saveTasks();
-                    renderTasks();
-                    renderImportantEvents();
-                    renderUpcomingEvents();
+            function toggleTask(taskId, isDaily) {
+                if (isDaily) {
+                    // For daily tasks, toggle completion for the selected date
+                    const task = tasks.find(t => t.id === taskId);
+                    if (task) {
+                        const isCompleted = isDailyTaskCompleted(taskId, selectedDate);
+                        markDailyTaskCompleted(taskId, selectedDate, !isCompleted);
+                        renderTasks();
+                        renderImportantEvents();
+                    }
+                } else {
+                    // For regular tasks, toggle the completed property
+                    const task = tasks.find(t => t.id === taskId);
+                    if (task) {
+                        task.completed = !task.completed;
+                        saveTasks();
+                        renderTasks();
+                        renderImportantEvents();
+                        renderUpcomingEvents();
+                    }
                 }
             }
 
             // Delete task
-            function deleteTask(taskId) {
+            function deleteTask(taskId, isDaily) {
+                if (isDaily) {
+                    // For daily tasks, we need to remove all completion records
+                    delete dailyTaskCompletions[taskId];
+                }
+                
                 tasks = tasks.filter(t => t.id !== taskId);
                 saveTasks();
                 renderTasks();
@@ -1651,7 +1904,7 @@
             taskForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 
-                if (!selectedDate) {
+                if (!selectedDate && !taskDailyCheckbox.checked) {
                     alert('Please select a date first');
                     return;
                 }
@@ -1659,8 +1912,9 @@
                 const newTask = {
                     id: Date.now(),
                     text: taskTextInput.value,
-                    date: formatDate(selectedDate),
+                    date: taskDailyCheckbox.checked ? null : formatDate(selectedDate),
                     important: taskImportantCheckbox.checked,
+                    daily: taskDailyCheckbox.checked,
                     completed: false
                 };
                 
@@ -1712,6 +1966,9 @@
                 });
             });
 
+            // Dark mode toggle
+            darkModeToggle.addEventListener('click', toggleDarkMode);
+
             // Menu toggle for mobile
             menuToggle.addEventListener('click', () => {
                 sidebar.classList.toggle('active');
@@ -1739,6 +1996,7 @@
             loadThemeColor();
             loadSectionColors();
             loadBackground();
+            loadDarkMode();
             renderCalendar();
             renderUpcomingEvents();
             
