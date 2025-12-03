@@ -1253,25 +1253,30 @@
                     dailyTaskCompletions = JSON.parse(savedCompletions);
                 }
                 
-                // Delete previous day's tasks
-                deletePreviousDayTasks();
+                // Delete tasks older than 30 days
+                deleteOldTasks();
             }
 
-            // Delete previous day's tasks
-            function deletePreviousDayTasks() {
+            // Delete tasks older than 30 days
+            function deleteOldTasks() {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 
-                // Filter out tasks that are from previous days
+                // Calculate the date 30 days ago
+                const thirtyDaysAgo = new Date(today);
+                thirtyDaysAgo.setDate(today.getDate() - 30);
+                thirtyDaysAgo.setHours(0, 0, 0, 0);
+                
+                // Filter out tasks that are older than 30 days
                 const originalLength = tasks.length;
                 tasks = tasks.filter(task => {
                     if (task.daily) {
                         // Keep daily tasks
                         return true;
                     } else {
-                        // For regular tasks, check if date is today or in the future
+                        // For regular tasks, check if date is within the last 30 days or in the future
                         const taskDate = new Date(task.date);
-                        return taskDate >= today;
+                        return taskDate >= thirtyDaysAgo;
                     }
                 });
                 
