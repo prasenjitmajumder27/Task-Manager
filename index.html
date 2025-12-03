@@ -33,6 +33,9 @@
             --task-text: #1f2937;
             --important-text: #1f2937;
             --daily-task-color: #10b981;
+            --event-red: #ef4444;
+            --event-yellow: #eab308;
+            --event-green: #22c55e;
         }
 
         /* Dark Mode Variables */
@@ -176,6 +179,18 @@
             box-shadow: var(--shadow-sm);
         }
 
+        .event-badge.near-event {
+            border-left-color: var(--event-red);
+        }
+
+        .event-badge.medium-event {
+            border-left-color: var(--event-yellow);
+        }
+
+        .event-badge.far-event {
+            border-left-color: var(--event-green);
+        }
+
         .event-badge .event-date {
             font-size: 12px;
             color: var(--text-secondary);
@@ -198,6 +213,18 @@
             padding: 2px 6px;
             border-radius: 10px;
             font-weight: 600;
+        }
+
+        .event-badge.near-event .event-type {
+            background: var(--event-red);
+        }
+
+        .event-badge.medium-event .event-type {
+            background: var(--event-yellow);
+        }
+
+        .event-badge.far-event .event-type {
+            background: var(--event-green);
         }
 
         .main-content {
@@ -1058,18 +1085,6 @@
                         <input type="color" id="theme-color" class="color-picker" value="#4f46e5">
                     </div>
                     <div class="color-picker-group">
-                        <label for="calendar-bg-color">Calendar BG:</label>
-                        <input type="color" id="calendar-bg-color" class="color-picker" value="#ffffff">
-                    </div>
-                    <div class="color-picker-group">
-                        <label for="task-list-bg-color">Tasks BG:</label>
-                        <input type="color" id="task-list-bg-color" class="color-picker" value="#ffffff">
-                    </div>
-                    <div class="color-picker-group">
-                        <label for="important-bg-color">Important BG:</label>
-                        <input type="color" id="important-bg-color" class="color-picker" value="#ffffff">
-                    </div>
-                    <div class="color-picker-group">
                         <label for="text-color">Text:</label>
                         <input type="color" id="text-color" class="color-picker" value="#1f2937">
                     </div>
@@ -1212,9 +1227,6 @@
             const taskImportantCheckbox = document.getElementById('task-important');
             const taskDailyCheckbox = document.getElementById('task-daily');
             const themeColorPicker = document.getElementById('theme-color');
-            const calendarBgColorPicker = document.getElementById('calendar-bg-color');
-            const taskListBgColorPicker = document.getElementById('task-list-bg-color');
-            const importantBgColorPicker = document.getElementById('important-bg-color');
             const textColorPicker = document.getElementById('text-color');
             const bgOptions = document.querySelectorAll('.bg-option');
             const menuToggle = document.getElementById('menu-toggle');
@@ -1240,6 +1252,33 @@
                 if (savedCompletions) {
                     dailyTaskCompletions = JSON.parse(savedCompletions);
                 }
+                
+                // Delete previous day's tasks
+                deletePreviousDayTasks();
+            }
+
+            // Delete previous day's tasks
+            function deletePreviousDayTasks() {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                // Filter out tasks that are from previous days
+                const originalLength = tasks.length;
+                tasks = tasks.filter(task => {
+                    if (task.daily) {
+                        // Keep daily tasks
+                        return true;
+                    } else {
+                        // For regular tasks, check if date is today or in the future
+                        const taskDate = new Date(task.date);
+                        return taskDate >= today;
+                    }
+                });
+                
+                // If tasks were removed, save the updated list
+                if (tasks.length < originalLength) {
+                    saveTasks();
+                }
             }
 
             // Save tasks to localStorage
@@ -1262,26 +1301,8 @@
                 localStorage.setItem('themeColor', color);
             }
 
-            // Load section colors from localStorage
-            function loadSectionColors() {
-                const savedCalendarBg = localStorage.getItem('calendarBgColor');
-                if (savedCalendarBg) {
-                    applyCalendarBgColor(savedCalendarBg);
-                    calendarBgColorPicker.value = savedCalendarBg;
-                }
-
-                const savedTaskListBg = localStorage.getItem('taskListBgColor');
-                if (savedTaskListBg) {
-                    applyTaskListBgColor(savedTaskListBg);
-                    taskListBgColorPicker.value = savedTaskListBg;
-                }
-
-                const savedImportantBg = localStorage.getItem('importantBgColor');
-                if (savedImportantBg) {
-                    applyImportantBgColor(savedImportantBg);
-                    importantBgColorPicker.value = savedImportantBg;
-                }
-
+            // Load text color from localStorage
+            function loadTextColor() {
                 const savedTextColor = localStorage.getItem('textColor');
                 if (savedTextColor) {
                     applyTextColor(savedTextColor);
@@ -1289,11 +1310,8 @@
                 }
             }
 
-            // Save section colors to localStorage
-            function saveSectionColors() {
-                localStorage.setItem('calendarBgColor', calendarBgColorPicker.value);
-                localStorage.setItem('taskListBgColor', taskListBgColorPicker.value);
-                localStorage.setItem('importantBgColor', importantBgColorPicker.value);
+            // Save text color to localStorage
+            function saveTextColor() {
                 localStorage.setItem('textColor', textColorPicker.value);
             }
 
@@ -1334,24 +1352,6 @@
                 
                 root.style.setProperty('--primary-light', lighterColor);
                 root.style.setProperty('--primary-dark', darkerColor);
-            }
-
-            // Apply calendar background color
-            function applyCalendarBgColor(color) {
-                const root = document.documentElement;
-                root.style.setProperty('--calendar-bg', color);
-            }
-
-            // Apply task list background color
-            function applyTaskListBgColor(color) {
-                const root = document.documentElement;
-                root.style.setProperty('--task-list-bg', color);
-            }
-
-            // Apply important background color
-            function applyImportantBgColor(color) {
-                const root = document.documentElement;
-                root.style.setProperty('--important-bg', color);
             }
 
             // Apply text color
@@ -1765,9 +1765,26 @@
                 }
                 
                 upcomingEvents.innerHTML = '';
-                futureEvents.forEach(task => {
+                futureEvents.forEach((task, index) => {
                     const eventBadge = document.createElement('div');
                     eventBadge.className = 'event-badge';
+                    
+                    // Determine proximity class for color coding
+                    if (!task.daily) {
+                        const taskDate = new Date(task.date);
+                        const daysUntilEvent = Math.ceil((taskDate - today) / (1000 * 60 * 60 * 24));
+                        
+                        if (daysUntilEvent <= 3) {
+                            eventBadge.classList.add('near-event');
+                        } else if (daysUntilEvent <= 7) {
+                            eventBadge.classList.add('medium-event');
+                        } else {
+                            eventBadge.classList.add('far-event');
+                        }
+                    } else {
+                        // Daily tasks are always considered "near"
+                        eventBadge.classList.add('near-event');
+                    }
                     
                     let eventDateText;
                     if (task.daily) {
@@ -1938,25 +1955,10 @@
                 saveThemeColor(color);
             });
 
-            // Section color pickers
-            calendarBgColorPicker.addEventListener('change', (e) => {
-                applyCalendarBgColor(e.target.value);
-                saveSectionColors();
-            });
-
-            taskListBgColorPicker.addEventListener('change', (e) => {
-                applyTaskListBgColor(e.target.value);
-                saveSectionColors();
-            });
-
-            importantBgColorPicker.addEventListener('change', (e) => {
-                applyImportantBgColor(e.target.value);
-                saveSectionColors();
-            });
-
+            // Text color picker
             textColorPicker.addEventListener('change', (e) => {
                 applyTextColor(e.target.value);
-                saveSectionColors();
+                saveTextColor();
             });
 
             // Background picker
@@ -1996,7 +1998,7 @@
             // Initialize app
             loadTasks();
             loadThemeColor();
-            loadSectionColors();
+            loadTextColor();
             loadBackground();
             loadDarkMode();
             renderCalendar();
